@@ -74,7 +74,7 @@ const CATEGORIES = [
     dotColor: "bg-blue-500",
     textColor: "text-blue-700",
     borderColor: "border-blue-300",
-    bgLight: "bg-blue-50",
+    bgLight: "bg-slate-50",
   },
 ] as const
 
@@ -118,8 +118,6 @@ export default function RollingTimelineBooking() {
   const [selectedSlots, setSelectedSlots] = useState<SelectedSlot[]>([])
   const [inputName, setInputName] = useState("")
   const [inputPassword, setInputPassword] = useState("")
-  const [inputPasswordConfirm, setInputPasswordConfirm] = useState("")
-  const [passwordMismatch, setPasswordMismatch] = useState(false)
 
   // Cancel modal
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false)
@@ -128,7 +126,7 @@ export default function RollingTimelineBooking() {
   const [cancelError, setCancelError] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   
-  // New state: track which overlapping slots the user wants to cancel together
+  // Multiple cancellations tracking state
   const [slotsToCancel, setSlotsToCancel] = useState<Reservation[]>([])
 
   const today = startOfDay(new Date())
@@ -235,15 +233,14 @@ export default function RollingTimelineBooking() {
       setCancelPassword("")
       setCancelError(false)
       
-      // Look through the schedule state and auto-gather all slots reserved under this exact name on this day
       const relatedSlots: Reservation[] = []
       const dayReservations = schedule[activeCategory]?.[dateKey] || {}
       Object.values(dayReservations).forEach((res) => {
         if (res.user_name === booking.user_name) {
-          relatedSlots.sort((a, b) => a.hour_idx - b.hour_idx)
           relatedSlots.push(res)
         }
       })
+      relatedSlots.sort((a, b) => a.hour_idx - b.hour_idx)
       
       setSlotsToCancel(relatedSlots)
       setIsCancelModalOpen(true)
@@ -261,15 +258,12 @@ export default function RollingTimelineBooking() {
     if (selectedSlots.length === 0) return
     setInputName("")
     setInputPassword("")
-    setInputPasswordConfirm("")
-    setPasswordMismatch(false)
     setIsBookingModalOpen(true)
   }
 
   const handleConfirmReservation = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inputName.trim() || !inputPassword) return
-    if (inputPassword !== inputPasswordConfirm) { setPasswordMismatch(true); return }
 
     setSaving(true)
     const hash = await hashPassword(inputPassword)
@@ -313,7 +307,6 @@ export default function RollingTimelineBooking() {
     const targetBooking = schedule[activeCategory]?.[cancelTarget.dateKey]?.[cancelTarget.hourIdx]
     if (!targetBooking) return
 
-    // Verify Password
     const hash = await hashPassword(cancelPassword)
     if (hash !== targetBooking.password_hash) {
       setCancelError(true)
@@ -321,11 +314,9 @@ export default function RollingTimelineBooking() {
     }
 
     setCancelling(true)
-
-    // Gather IDs for the database delete call
     const idsToDelete = slotsToCancel.map(slot => slot.id)
 
-    // ⚡ OPTIMISTIC UI FLASH: Instantly remove all checked rows from view
+    // ⚡ OPTIMISTIC UI FLASH
     slotsToCancel.forEach((slot) => {
       removeRow({ category_id: activeCategory, date_key: slot.date_key, hour_idx: slot.hour_idx })
     })
@@ -333,7 +324,6 @@ export default function RollingTimelineBooking() {
     setIsCancelModalOpen(false)
     setCancelTarget(null)
 
-    // Perform mass delete request
     const { error } = await supabase
       .from("reservations")
       .delete()
@@ -343,16 +333,13 @@ export default function RollingTimelineBooking() {
 
     if (error) {
       console.error("Error batch-cancelling requests", error)
-      // Rollback cancel layout: Restore all rows back safely if server failures strike
       applyRows(slotsToCancel)
       alert("Error cancelling bookings from server. Restoring elements.")
     }
   }
 
-  // Helper toggle function allowing users to fine-tune selection items inside the modal checkbox list
   const toggleSlotCancelSelection = (res: Reservation) => {
     if (slotsToCancel.some(s => s.id === res.id)) {
-      // Keep at least one element selected (the primary cell target)
       if (slotsToCancel.length === 1) return 
       setSlotsToCancel(prev => prev.filter(s => s.id !== res.id))
     } else {
@@ -528,7 +515,7 @@ export default function RollingTimelineBooking() {
         </div>
       )}
 
-      {/* ── Booking modal ── */}
+      {/* ── Booking modal (Confirm password removed) ── */}
       <Dialog open={isBookingModalOpen} onOpenChange={setIsBookingModalOpen}>
         <DialogContent className="sm:max-w-[420px] bg-white text-slate-900 p-6 rounded-xl shadow-lg">
           <form onSubmit={handleConfirmReservation}>
@@ -566,17 +553,9 @@ export default function RollingTimelineBooking() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-600">Cancellation Password</label>
                 <input type="password" required value={inputPassword}
-                  onChange={(e) => { setInputPassword(e.target.value); setPasswordMismatch(false) }}
+                  onChange={(e) => setInputPassword(e.target.value)}
                   placeholder="Choose a password"
-                  className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 bg-slate-50 ${passwordMismatch ? "border-red-400 focus:ring-red-400" : "focus:ring-teal-500"}`} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600">Confirm Password</label>
-                <input type="password" required value={inputPasswordConfirm}
-                  onChange={(e) => { setInputPasswordConfirm(e.target.value); setPasswordMismatch(false) }}
-                  placeholder="Re-enter password"
-                  className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 bg-slate-50 ${passwordMismatch ? "border-red-400 focus:ring-red-400" : "focus:ring-teal-500"}`} />
-                {passwordMismatch && <p className="text-[10px] text-red-500 font-medium">Passwords do not match.</p>}
+                  className="w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" />
               </div>
             </div>
 
@@ -591,7 +570,7 @@ export default function RollingTimelineBooking() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Cancel modal (Enhanced to support multiple cancellations) ── */}
+      {/* ── Cancel modal ── */}
       <Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
         <DialogContent className="sm:max-w-[400px] bg-white text-slate-900 p-6 rounded-xl shadow-lg">
           <form onSubmit={handleConfirmCancel}>
