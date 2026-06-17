@@ -260,7 +260,14 @@ export default function RollingTimelineBooking() {
       category_id: activeCategory,
     }))
 
-    const { error } = await supabase.from("reservations").insert(rows)
+    // 1. Debugging check: View exactly what data payload your app is sending
+    console.log("🚀 SENDING PAYLOAD TO SUPABASE:", rows)
+
+    const { data, error, status, statusText } = await supabase
+      .from("reservations")
+      .insert(rows)
+      .select()
+
     setSaving(false)
 
     if (!error) {
