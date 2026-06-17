@@ -267,7 +267,13 @@ export default function RollingTimelineBooking() {
       setSelectedSlots([])
       setIsBookingModalOpen(false)
     } else {
-      alert("Error saving reservation. Please try again.")
+      console.error("Supabase Error Details:", error)
+      alert(
+        `❌ SAVE FAILED!\n\n` +
+        `Message: ${error.message}\n` +
+        `Code: ${error.code}\n` +
+        `Details: ${error.details || "None"}`
+      )
     }
   }
 
