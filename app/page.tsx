@@ -271,15 +271,20 @@ export default function RollingTimelineBooking() {
     setSaving(false)
 
     if (!error) {
-      setSelectedSlots([])
-      setIsBookingModalOpen(false)
+    console.log("✅ SUCCESS:", data)
+    setSelectedSlots([])
+    setIsBookingModalOpen(false)
     } else {
-      console.error("Supabase Error Details:", error)
+      // 2. Print every ounce of network response data available
+      console.error("❌ SUPABASE TRANSACTION FAILED")
+      console.error("HTTP Status:", status, statusText)
+      console.error("Error Object:", error)
+      
       alert(
-        `❌ SAVE FAILED!\n\n` +
-        `Message: ${error.message}\n` +
-        `Code: ${error.code}\n` +
-        `Details: ${error.details || "None"}`
+        `Database Rejection Details:\n` +
+        `• Message: ${error.message}\n` +
+        `• Code: ${error.code}\n` +
+        `• Details: ${error.details || "Check your browser inspect console (F12) for the exact payload snapshot."}`
       )
     }
   }
