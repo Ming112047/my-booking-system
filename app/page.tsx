@@ -271,9 +271,9 @@ export default function RollingTimelineBooking() {
     setSaving(false)
 
     if (!error) {
-    console.log("✅ SUCCESS:", data)
-    setSelectedSlots([])
-    setIsBookingModalOpen(false)
+      console.log("✅ SUCCESS:", data)
+      setSelectedSlots([])
+      setIsBookingModalOpen(false)
     } else {
       // 2. Print every ounce of network response data available
       console.error("❌ SUPABASE TRANSACTION FAILED")
