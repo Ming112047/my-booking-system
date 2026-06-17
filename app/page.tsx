@@ -127,6 +127,9 @@ export default function RollingTimelineBooking() {
   const [cancelPassword, setCancelPassword] = useState("")
   const [cancelError, setCancelError] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  
+  // New state: track which overlapping slots the user wants to cancel together
+  const [slotsToCancel, setSlotsToCancel] = useState<Reservation[]>([])
 
   const today = startOfDay(new Date())
   const currentSunday = addDays(today, -today.getDay())
@@ -196,12 +199,10 @@ export default function RollingTimelineBooking() {
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "reservations" },
         (payload) => {
-          // If old payload payload is stripped, fall back to parsing route parameters
           const oldRow = payload.old as Reservation
           if (oldRow && oldRow.category_id) {
             removeRow(oldRow)
           } else if (payload.errors === null) {
-            // Re-fetch fallback safety if payload missing properties
             supabase.from("reservations").select("*").then(({ data }) => {
               if (data) applyRows(data as Reservation[])
             })
@@ -228,13 +229,27 @@ export default function RollingTimelineBooking() {
   const handleCellClick = (dateKey: string, hourIdx: number, dayDate: Date) => {
     if (isSlotPast(dayDate, hourIdx)) return
     const booking = schedule[activeCategory]?.[dateKey]?.[hourIdx]
+    
     if (booking) {
       setCancelTarget({ dateKey, hourIdx })
       setCancelPassword("")
       setCancelError(false)
+      
+      // Look through the schedule state and auto-gather all slots reserved under this exact name on this day
+      const relatedSlots: Reservation[] = []
+      const dayReservations = schedule[activeCategory]?.[dateKey] || {}
+      Object.values(dayReservations).forEach((res) => {
+        if (res.user_name === booking.user_name) {
+          relatedSlots.sort((a, b) => a.hour_idx - b.hour_idx)
+          relatedSlots.push(res)
+        }
+      })
+      
+      setSlotsToCancel(relatedSlots)
       setIsCancelModalOpen(true)
       return
     }
+    
     if (isSlotSelected(dateKey, hourIdx)) {
       setSelectedSlots((prev) => prev.filter((s) => !(s.dateKey === dateKey && s.hourIdx === hourIdx)))
     } else {
@@ -268,12 +283,11 @@ export default function RollingTimelineBooking() {
       category_id: activeCategory,
     }))
 
-    // ⚡ OPTIMISTIC UI FLASH: Instantly print rows onto calendar grid
+    // ⚡ OPTIMISTIC UI FLASH
     applyRows(temporaryRows)
     setSelectedSlots([])
     setIsBookingModalOpen(false)
 
-    // Strip temp client IDs before writing row data array to Supabase
     const dbPayload = temporaryRows.map(({ id, ...rest }) => rest)
 
     const { data, error } = await supabase
@@ -285,43 +299,64 @@ export default function RollingTimelineBooking() {
 
     if (error) {
       console.error("❌ SUPABASE TRANSACTION FAILED", error)
-      // Rollback optimistic state changes instantly upon a failure code response
       temporaryRows.forEach((row) => removeRow(row))
       alert(`Reservation Failed: ${error.message}`)
     } else if (data) {
-      // Replace temporary blocks with real database records
       applyRows(data as Reservation[])
     }
   }
 
   const handleConfirmCancel = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!cancelTarget) return
-    const { dateKey, hourIdx } = cancelTarget
-    const booking = schedule[activeCategory]?.[dateKey]?.[hourIdx]
-    if (!booking) return
+    if (!cancelTarget || slotsToCancel.length === 0) return
 
+    const targetBooking = schedule[activeCategory]?.[cancelTarget.dateKey]?.[cancelTarget.hourIdx]
+    if (!targetBooking) return
+
+    // Verify Password
     const hash = await hashPassword(cancelPassword)
-    if (hash !== booking.password_hash) {
+    if (hash !== targetBooking.password_hash) {
       setCancelError(true)
       return
     }
 
     setCancelling(true)
 
-    // ⚡ OPTIMISTIC UI FLASH: Instantly wipe the box from view
-    removeRow({ category_id: activeCategory, date_key: dateKey, hour_idx: hourIdx })
+    // Gather IDs for the database delete call
+    const idsToDelete = slotsToCancel.map(slot => slot.id)
+
+    // ⚡ OPTIMISTIC UI FLASH: Instantly remove all checked rows from view
+    slotsToCancel.forEach((slot) => {
+      removeRow({ category_id: activeCategory, date_key: slot.date_key, hour_idx: slot.hour_idx })
+    })
+    
     setIsCancelModalOpen(false)
     setCancelTarget(null)
 
-    const { error } = await supabase.from("reservations").delete().eq("id", booking.id)
+    // Perform mass delete request
+    const { error } = await supabase
+      .from("reservations")
+      .delete()
+      .in("id", idsToDelete)
+
     setCancelling(false)
 
     if (error) {
-      console.error("Error cancelling request", error)
-      // Rollback cancel animation if database engine rejects execution rule
-      applyRows([booking])
-      alert("Error cancelling booking from server. Restoring element.")
+      console.error("Error batch-cancelling requests", error)
+      // Rollback cancel layout: Restore all rows back safely if server failures strike
+      applyRows(slotsToCancel)
+      alert("Error cancelling bookings from server. Restoring elements.")
+    }
+  }
+
+  // Helper toggle function allowing users to fine-tune selection items inside the modal checkbox list
+  const toggleSlotCancelSelection = (res: Reservation) => {
+    if (slotsToCancel.some(s => s.id === res.id)) {
+      // Keep at least one element selected (the primary cell target)
+      if (slotsToCancel.length === 1) return 
+      setSlotsToCancel(prev => prev.filter(s => s.id !== res.id))
+    } else {
+      setSlotsToCancel(prev => [...prev, res].sort((a, b) => a.hour_idx - b.hour_idx))
     }
   }
 
@@ -462,7 +497,7 @@ export default function RollingTimelineBooking() {
                           key={hourIdx}
                           onClick={() => handleCellClick(day.dbKey, hourIdx, day.rawDate)}
                           className={`border-r border-slate-200 p-1 text-center select-none align-middle transition-all text-[11px] truncate max-w-[90px] ${cellStyle}`}
-                          title={isReserved ? `${booking.user_name} — click to cancel` : isSelected ? "Click to deselect" : ""}
+                          title={isReserved ? `${booking.user_name} — click to manage cancel option` : isSelected ? "Click to deselect" : ""}
                         >
                           {isReserved ? booking.user_name : isSelected ? "✓" : ""}
                         </td>
@@ -556,34 +591,62 @@ export default function RollingTimelineBooking() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Cancel modal ── */}
+      {/* ── Cancel modal (Enhanced to support multiple cancellations) ── */}
       <Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
-        <DialogContent className="sm:max-w-[380px] bg-white text-slate-900 p-6 rounded-xl shadow-lg">
+        <DialogContent className="sm:max-w-[400px] bg-white text-slate-900 p-6 rounded-xl shadow-lg">
           <form onSubmit={handleConfirmCancel}>
             <DialogHeader>
-              <DialogTitle className="text-lg font-bold">Cancel Reservation</DialogTitle>
+              <DialogTitle className="text-lg font-bold">Cancel Reservations</DialogTitle>
               <DialogDescription className="text-slate-500 text-xs mt-1">
                 {cancelTarget && (() => {
                   const b = schedule[activeCategory]?.[cancelTarget.dateKey]?.[cancelTarget.hourIdx]
-                  return b ? <>Reserved by <span className="font-semibold text-slate-700">{b.user_name}</span>. Enter the cancellation password to remove this booking.</> : null
+                  return b ? <>Found details for <span className="font-semibold text-slate-700">{b.user_name}</span> on this day. Select the slots you wish to cancel:</> : null
                 })()}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="my-5 flex flex-col gap-1.5">
+            {/* Checklist of slots available for cancellation */}
+            <div className="my-3 max-h-36 overflow-y-auto rounded-lg bg-slate-50 border border-slate-200 p-3 flex flex-col gap-2">
+              {slotsToCancel.map((slot) => {
+                const isPrimaryTarget = cancelTarget?.dateKey === slot.date_key && cancelTarget?.hourIdx === slot.hour_idx
+                const isChecked = slotsToCancel.some(s => s.id === slot.id)
+                
+                return (
+                  <label 
+                    key={slot.id} 
+                    className={`flex items-center justify-between p-1.5 rounded transition-colors text-xs cursor-pointer ${
+                      isPrimaryTarget ? "bg-amber-50 font-medium border border-dashed border-amber-300" : "hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleSlotCancelSelection(slot)}
+                        className="rounded border-slate-300 text-red-500 focus:ring-red-400 accent-red-500"
+                      />
+                      <span className="text-slate-700">{HOURS[slot.hour_idx]}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">{slot.date_key}</span>
+                  </label>
+                )
+              })}
+            </div>
+
+            <div className="my-4 flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-600">Password</label>
               <input type="password" autoFocus required value={cancelPassword}
                 onChange={(e) => { setCancelPassword(e.target.value); setCancelError(false) }}
                 placeholder="Enter cancellation password"
-                className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 bg-slate-50 ${cancelError ? "border-red-400 focus:ring-red-400" : "focus:ring-red-400"}`} />
+                className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 bg-slate-50 ${cancelError ? "border-red-400 focus:ring-red-400" : "focus:ring-red-500"}`} />
               {cancelError && <p className="text-[10px] text-red-500 font-medium">Incorrect password. Try again.</p>}
             </div>
 
             <DialogFooter className="flex gap-2 justify-end border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setIsCancelModalOpen(false)} className="text-xs px-4 py-2">Go Back</Button>
-              <Button type="submit" disabled={cancelling}
+              <Button type="submit" disabled={cancelling || slotsToCancel.length === 0}
                 className="bg-red-500 hover:bg-red-600 text-white font-semibold text-xs px-4 py-2 rounded-lg shadow-sm disabled:opacity-60">
-                {cancelling ? "Cancelling…" : "Cancel Reservation"}
+                {cancelling ? "Cancelling…" : `Cancel ${slotsToCancel.length} Selected`}
               </Button>
             </DialogFooter>
           </form>
