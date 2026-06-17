@@ -14,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button"
 
 // ─── Supabase client ───────────────────────────────────────────────────────────
-// These values come from your .env.local file (see setup guide)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -91,7 +90,6 @@ interface Reservation {
   category_id: CategoryId
 }
 
-// schedule: { categoryId: { dateKey: { hourIdx: Reservation } } }
 type Schedule = Record<string, Record<string, Record<number, Reservation>>>
 
 interface SelectedSlot {
@@ -100,7 +98,6 @@ interface SelectedSlot {
   dateObj: Date
 }
 
-// Simple client-side hash (not cryptographic — fine for low-stakes cancellation PIN)
 async function hashPassword(pw: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pw))
   return Array.from(new Uint8Array(buf))
@@ -149,7 +146,6 @@ export default function RollingTimelineBooking() {
   const applyRows = useCallback((rows: Reservation[]) => {
     setSchedule((prev) => {
       const next: Schedule = { ...prev }
-      // Clone existing category maps
       for (const cat of CATEGORIES) {
         next[cat.id] = next[cat.id] ? { ...next[cat.id] } : {}
       }
@@ -162,7 +158,7 @@ export default function RollingTimelineBooking() {
     })
   }, [])
 
-  const removeRow = useCallback((row: Reservation) => {
+  const removeRow = useCallback((row: Partial<Reservation> & { category_id: CategoryId; date_key: string; hour_idx: number }) => {
     setSchedule((prev) => {
       const next = { ...prev }
       if (next[row.category_id]?.[row.date_key]) {
@@ -199,7 +195,18 @@ export default function RollingTimelineBooking() {
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "reservations" },
-        (payload) => removeRow(payload.old as Reservation)
+        (payload) => {
+          // If old payload payload is stripped, fall back to parsing route parameters
+          const oldRow = payload.old as Reservation
+          if (oldRow && oldRow.category_id) {
+            removeRow(oldRow)
+          } else if (payload.errors === null) {
+            // Re-fetch fallback safety if payload missing properties
+            supabase.from("reservations").select("*").then(({ data }) => {
+              if (data) applyRows(data as Reservation[])
+            })
+          }
+        }
       )
       .subscribe()
 
@@ -252,7 +259,8 @@ export default function RollingTimelineBooking() {
     setSaving(true)
     const hash = await hashPassword(inputPassword)
 
-    const rows = selectedSlots.map(({ dateKey, hourIdx }) => ({
+    const temporaryRows: Reservation[] = selectedSlots.map(({ dateKey, hourIdx }) => ({
+      id: `temp-${dateKey}-${hourIdx}-${Math.random()}`,
       user_name: inputName.trim(),
       password_hash: hash,
       date_key: dateKey,
@@ -260,32 +268,29 @@ export default function RollingTimelineBooking() {
       category_id: activeCategory,
     }))
 
-    // 1. Debugging check: View exactly what data payload your app is sending
-    console.log("🚀 SENDING PAYLOAD TO SUPABASE:", rows)
+    // ⚡ OPTIMISTIC UI FLASH: Instantly print rows onto calendar grid
+    applyRows(temporaryRows)
+    setSelectedSlots([])
+    setIsBookingModalOpen(false)
 
-    const { data, error, status, statusText } = await supabase
+    // Strip temp client IDs before writing row data array to Supabase
+    const dbPayload = temporaryRows.map(({ id, ...rest }) => rest)
+
+    const { data, error } = await supabase
       .from("reservations")
-      .insert(rows)
+      .insert(dbPayload)
       .select()
 
     setSaving(false)
 
-    if (!error) {
-      console.log("✅ SUCCESS:", data)
-      setSelectedSlots([])
-      setIsBookingModalOpen(false)
-    } else {
-      // 2. Print every ounce of network response data available
-      console.error("❌ SUPABASE TRANSACTION FAILED")
-      console.error("HTTP Status:", status, statusText)
-      console.error("Error Object:", error)
-      
-      alert(
-        `Database Rejection Details:\n` +
-        `• Message: ${error.message}\n` +
-        `• Code: ${error.code}\n` +
-        `• Details: ${error.details || "Check your browser inspect console (F12) for the exact payload snapshot."}`
-      )
+    if (error) {
+      console.error("❌ SUPABASE TRANSACTION FAILED", error)
+      // Rollback optimistic state changes instantly upon a failure code response
+      temporaryRows.forEach((row) => removeRow(row))
+      alert(`Reservation Failed: ${error.message}`)
+    } else if (data) {
+      // Replace temporary blocks with real database records
+      applyRows(data as Reservation[])
     }
   }
 
@@ -303,14 +308,20 @@ export default function RollingTimelineBooking() {
     }
 
     setCancelling(true)
+
+    // ⚡ OPTIMISTIC UI FLASH: Instantly wipe the box from view
+    removeRow({ category_id: activeCategory, date_key: dateKey, hour_idx: hourIdx })
+    setIsCancelModalOpen(false)
+    setCancelTarget(null)
+
     const { error } = await supabase.from("reservations").delete().eq("id", booking.id)
     setCancelling(false)
 
-    if (!error) {
-      setIsCancelModalOpen(false)
-      setCancelTarget(null)
-    } else {
-      alert("Error cancelling. Please try again.")
+    if (error) {
+      console.error("Error cancelling request", error)
+      // Rollback cancel animation if database engine rejects execution rule
+      applyRows([booking])
+      alert("Error cancelling booking from server. Restoring element.")
     }
   }
 
