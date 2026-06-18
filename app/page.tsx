@@ -525,7 +525,7 @@ export default function RollingTimelineBooking() {
                 <span className={`font-bold ${cat.textColor}`}>{cat.label}</span>
                 {" · "}
                 <span className="font-semibold">{selectedSlots.length} slot{selectedSlots.length > 1 ? "s" : ""}</span>
-                {" · "}Set a password so only you can cancel later.
+                {" · "}Please review your order and set a password for future cancellations.
               </DialogDescription>
             </DialogHeader>
 
@@ -544,7 +544,7 @@ export default function RollingTimelineBooking() {
 
             <div className="flex flex-col gap-3 my-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600">Full Name</label>
+                <label className="text-xs font-semibold text-slate-600">Name</label>
                 <input type="text" autoFocus required value={inputName}
                   onChange={(e) => setInputName(e.target.value)}
                   placeholder="e.g. Jane Smith"
@@ -554,7 +554,7 @@ export default function RollingTimelineBooking() {
                 <label className="text-xs font-semibold text-slate-600">Set your Password</label>
                 <input type="password" required value={inputPassword}
                   onChange={(e) => setInputPassword(e.target.value)}
-                  placeholder="set your password (for future cancellations)"
+                  placeholder="password for future cancellations"
                   className="w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" />
               </div>
             </div>
