@@ -551,10 +551,10 @@ export default function RollingTimelineBooking() {
                   className="w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600">Cancellation Password</label>
+                <label className="text-xs font-semibold text-slate-600">Set your Password</label>
                 <input type="password" required value={inputPassword}
                   onChange={(e) => setInputPassword(e.target.value)}
-                  placeholder="Choose a password"
+                  placeholder="set your password (for future cancellations)"
                   className="w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" />
               </div>
             </div>
