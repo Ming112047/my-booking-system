@@ -522,10 +522,15 @@ export default function RollingTimelineBooking() {
             <DialogHeader>
               <DialogTitle className="text-lg font-bold">New Reservation</DialogTitle>
               <DialogDescription className="text-slate-500 text-xs mt-1">
-                <span className={`font-bold ${cat.textColor}`}>{cat.label}</span>
-                {" · "}
-                <span className="font-semibold">{selectedSlots.length} slot{selectedSlots.length > 1 ? "s" : ""}</span>
-                {" · "}Please review your order and set a password for future cancellations.
+                <div>
+                  <span className={`font-bold ${cat.textColor}`}>{cat.label}</span>
+                  {" · "}
+                  <span className="font-semibold">
+                    {selectedSlots.length} slot{selectedSlots.length > 1 ? "s" : ""}</span>
+                </div>
+                <div>
+                  Please review your order and set a password for future cancellations.
+                </div>
               </DialogDescription>
             </DialogHeader>
 
