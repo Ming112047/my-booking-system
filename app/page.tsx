@@ -66,7 +66,7 @@ const CATEGORIES = [
   {
     id: "blue_reactor",
     label: "PhotoRedOx Box",
-    sublabel: "Blue Reactor",
+    sublabel: "Blue Reactor 1",
     color: "bg-blue-500",
     colorReserved: "bg-blue-500 hover:bg-blue-600",
     colorSelected: "bg-blue-300 ring-2 ring-blue-400 ring-inset",
@@ -74,7 +74,20 @@ const CATEGORIES = [
     dotColor: "bg-blue-500",
     textColor: "text-blue-700",
     borderColor: "border-blue-300",
-    bgLight: "bg-slate-50",
+    bgLight: "bg-blue-50",
+  },
+  {
+    id: "blue_reactor_2",
+    label: "PhotoRedOx Box",
+    sublabel: "Blue Reactor 2",
+    color: "bg-indigo-500",
+    colorReserved: "bg-indigo-500 hover:bg-indigo-600",
+    colorSelected: "bg-indigo-300 ring-2 ring-indigo-400 ring-inset",
+    colorHover: "hover:bg-indigo-50",
+    dotColor: "bg-indigo-500",
+    textColor: "text-indigo-700",
+    borderColor: "border-indigo-300",
+    bgLight: "bg-indigo-50",
   },
 ] as const
 
