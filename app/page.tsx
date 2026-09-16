@@ -468,7 +468,7 @@ export default function RollingTimelineBooking() {
   const rangeDisplay = `${firstDay.dateLabel} – ${lastDay.dateLabel}`
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 text-slate-800 font-sans text-xs flex">
+    <div className="w-screen h-screen overflow-hidden bg-slate-50 text-slate-800 font-sans text-xs flex">
 
       {/* ── Sidebar: YouTube-style icon rail, expands to show labels ── */}
       <div
@@ -535,38 +535,38 @@ export default function RollingTimelineBooking() {
       </div>
 
       {/* ── Main content, offset to the right of the sidebar ── */}
-      <div className={`flex-1 p-4 transition-all duration-200 ${isSidebarOpen ? "ml-44" : "ml-14"}`}>
-      <div className="max-w-[1600px] mx-auto bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+      <div className={`flex-1 h-screen overflow-y-auto overflow-x-hidden p-3 transition-all duration-200 ${isSidebarOpen ? "ml-44" : "ml-14"}`}>
+      <div className="max-w-[1600px] mx-auto bg-white rounded-lg shadow-sm border border-slate-200 p-3 flex flex-col" style={{ minHeight: "calc(100vh - 1.5rem)" }}>
 
         {/* Header */}
-        <div className="flex flex-col items-center justify-center mb-5">
-          <h1 className="text-xl font-bold text-slate-700 tracking-tight">
+        <div className="flex flex-col items-center justify-center mb-2">
+          <h1 className="text-lg font-bold text-slate-700 tracking-tight">
             SAA Lab Scheduler
           </h1>
           <p className="text-[10px] text-slate-400 mt-0.5">Book instruments & reactors · syncs live for all users</p>
         </div>
 
         {/* Week nav */}
-        <div className="flex items-center justify-center gap-4 mb-5">
+        <div className="flex items-center justify-center gap-4 mb-2">
           <button
             onClick={handlePrevPeriod}
-            className="px-3 py-1.5 border rounded bg-white hover:bg-slate-100 font-semibold transition-all text-xs shadow-sm"
+            className="px-3 py-1 border rounded bg-white hover:bg-slate-100 font-semibold transition-all text-xs shadow-sm"
           >
             ← Prev Week
           </button>
-          <p className={`font-bold text-xs px-4 py-1.5 rounded-full border ${cat.textColor} ${cat.borderColor} ${cat.bgLight}`}>
+          <p className={`font-bold text-xs px-4 py-1 rounded-full border ${cat.textColor} ${cat.borderColor} ${cat.bgLight}`}>
             {rangeDisplay}
           </p>
           <button
             onClick={handleNextPeriod}
-            className="px-3 py-1.5 border rounded bg-white hover:bg-slate-100 font-semibold transition-all text-xs shadow-sm"
+            className="px-3 py-1 border rounded bg-white hover:bg-slate-100 font-semibold transition-all text-xs shadow-sm"
           >
             Next Week →
           </button>
         </div>
 
         {/* Legend */}
-        <div className="flex gap-4 justify-center mb-4 pb-3 text-[10px] font-medium text-slate-500 border-b border-slate-100">
+        <div className="flex gap-4 justify-center mb-2 pb-2 text-[10px] font-medium text-slate-500 border-b border-slate-100">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 bg-white border border-slate-300 rounded"></span> Available
           </div>
@@ -593,7 +593,7 @@ export default function RollingTimelineBooking() {
             Loading schedule…
           </div>
         ) : (
-          <div className="w-full overflow-x-auto border border-slate-200 rounded shadow-sm">
+          <div className="w-full flex-1 overflow-auto border border-slate-200 rounded shadow-sm">
             <table className="w-full min-w-[2000px] border-collapse table-fixed bg-white">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
