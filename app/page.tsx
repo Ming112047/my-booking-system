@@ -409,7 +409,7 @@ export default function RollingTimelineBooking() {
         {/* Header */}
         <div className="flex flex-col items-center justify-center mb-5">
           <h1 className="text-xl font-bold text-slate-700 tracking-tight">
-            Photochemistry Lab Scheduler
+            SAA Lab Scheduler
           </h1>
           <p className="text-[10px] text-slate-400 mt-0.5">Book instruments & reactors · syncs live for all users</p>
         </div>
