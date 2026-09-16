@@ -142,6 +142,10 @@ export default function RollingTimelineBooking() {
   // Multiple cancellations tracking state
   const [slotsToCancel, setSlotsToCancel] = useState<Reservation[]>([])
 
+  // Drag-to-select state
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragMode, setDragMode] = useState<"select" | "deselect">("select")
+
   const today = startOfDay(new Date())
   const currentSunday = addDays(today, -today.getDay())
 
@@ -225,6 +229,13 @@ export default function RollingTimelineBooking() {
     return () => { supabase.removeChannel(channel) }
   }, [applyRows, removeRow])
 
+  // ── End drag selection even if mouse released outside table ──
+  useEffect(() => {
+    const handleGlobalMouseUp = () => setIsDragging(false)
+    window.addEventListener("mouseup", handleGlobalMouseUp)
+    return () => window.removeEventListener("mouseup", handleGlobalMouseUp)
+  }, [])
+
   // ── Helpers ──
   const handleNextPeriod = () => setDayOffset((prev) => prev + 7)
   const handlePrevPeriod = () => setDayOffset((prev) => prev - 7)
@@ -237,15 +248,15 @@ export default function RollingTimelineBooking() {
   const isSlotSelected = (dateKey: string, hourIdx: number) =>
     selectedSlots.some((s) => s.dateKey === dateKey && s.hourIdx === hourIdx)
 
-  const handleCellClick = (dateKey: string, hourIdx: number, dayDate: Date) => {
+  const startDrag = (dateKey: string, hourIdx: number, dayDate: Date) => {
     if (isSlotPast(dayDate, hourIdx)) return
     const booking = schedule[activeCategory]?.[dateKey]?.[hourIdx]
-    
+
     if (booking) {
       setCancelTarget({ dateKey, hourIdx })
       setCancelPassword("")
       setCancelError(false)
-      
+
       const relatedSlots: Reservation[] = []
       const dayReservations = schedule[activeCategory]?.[dateKey] || {}
       Object.values(dayReservations).forEach((res) => {
@@ -254,18 +265,41 @@ export default function RollingTimelineBooking() {
         }
       })
       relatedSlots.sort((a, b) => a.hour_idx - b.hour_idx)
-      
+
       setSlotsToCancel(relatedSlots)
       setIsCancelModalOpen(true)
       return
     }
-    
-    if (isSlotSelected(dateKey, hourIdx)) {
+
+    // Determine drag mode from the state of the first cell touched
+    const alreadySelected = isSlotSelected(dateKey, hourIdx)
+    const mode = alreadySelected ? "deselect" : "select"
+    setDragMode(mode)
+    setIsDragging(true)
+
+    if (mode === "deselect") {
       setSelectedSlots((prev) => prev.filter((s) => !(s.dateKey === dateKey && s.hourIdx === hourIdx)))
     } else {
       setSelectedSlots((prev) => [...prev, { dateKey, hourIdx, dateObj: dayDate }])
     }
   }
+
+  const dragOverSlot = (dateKey: string, hourIdx: number, dayDate: Date) => {
+    if (!isDragging) return
+    if (isSlotPast(dayDate, hourIdx)) return
+    const booking = schedule[activeCategory]?.[dateKey]?.[hourIdx]
+    if (booking) return // never drag over reserved cells
+
+    const currentlySelected = isSlotSelected(dateKey, hourIdx)
+
+    if (dragMode === "select" && !currentlySelected) {
+      setSelectedSlots((prev) => [...prev, { dateKey, hourIdx, dateObj: dayDate }])
+    } else if (dragMode === "deselect" && currentlySelected) {
+      setSelectedSlots((prev) => prev.filter((s) => !(s.dateKey === dateKey && s.hourIdx === hourIdx)))
+    }
+  }
+
+  const endDrag = () => setIsDragging(false)
 
   const handleOpenBookingModal = () => {
     if (selectedSlots.length === 0) return
@@ -495,9 +529,11 @@ export default function RollingTimelineBooking() {
                       return (
                         <td
                           key={hourIdx}
-                          onClick={() => handleCellClick(day.dbKey, hourIdx, day.rawDate)}
+                          onMouseDown={(e) => { e.preventDefault(); startDrag(day.dbKey, hourIdx, day.rawDate) }}
+                          onMouseEnter={() => dragOverSlot(day.dbKey, hourIdx, day.rawDate)}
+                          onMouseUp={endDrag}
                           className={`border-r border-slate-200 p-1 text-center select-none align-middle transition-all text-[11px] truncate max-w-[90px] ${cellStyle}`}
-                          title={isReserved ? `${booking.user_name} — click to manage cancel option` : isSelected ? "Click to deselect" : ""}
+                          title={isReserved ? `${booking.user_name} — click to manage cancel option` : isSelected ? "Click/drag to deselect" : ""}
                         >
                           {isReserved ? booking.user_name : isSelected ? "✓" : ""}
                         </td>
