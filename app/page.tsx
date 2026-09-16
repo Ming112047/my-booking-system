@@ -473,7 +473,7 @@ export default function RollingTimelineBooking() {
       {/* ── Sidebar: YouTube-style icon rail, expands to show labels ── */}
       <div
         className={`fixed left-0 top-0 h-full bg-white border-r border-slate-200 shadow-sm z-40 flex flex-col items-center py-3 gap-1 transition-all duration-200 ${
-          isSidebarOpen ? "w-52 items-stretch px-2" : "w-14"
+          isSidebarOpen ? "w-64 items-stretch px-2" : "w-14"
         }`}
       >
         {/* Hamburger toggle */}
@@ -535,7 +535,7 @@ export default function RollingTimelineBooking() {
       </div>
 
       {/* ── Main content, offset to the right of the sidebar ── */}
-      <div className={`flex-1 h-screen overflow-y-auto overflow-x-hidden p-3 transition-all duration-200 ${isSidebarOpen ? "ml-52" : "ml-14"}`}>
+      <div className={`flex-1 h-screen overflow-y-auto overflow-x-hidden p-3 transition-all duration-200 ${isSidebarOpen ? "ml-64" : "ml-14"}`}>
       <div className="max-w-[1600px] mx-auto bg-white rounded-lg shadow-sm border border-slate-200 p-3 flex flex-col" style={{ minHeight: "calc(100vh - 1.5rem)" }}>
 
         {/* Header */}
