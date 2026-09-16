@@ -529,13 +529,7 @@ export default function RollingTimelineBooking() {
             <span className={`w-3 h-3 rounded opacity-60 ${cat.color}`}></span> Selected
           </div>
           <div className="flex items-center gap-1.5">
-            <span
-              className={`w-3 h-3 rounded ${cat.color} flex items-center justify-center text-white text-[7px] leading-none`}
-              style={{ backgroundImage: cat.pattern, backgroundSize: "6px 6px" }}
-            >
-              {cat.icon}
-            </span>
-            Reserved <span className="text-slate-400">(icon + pattern shows the instrument)</span>
+            <span className={`w-3 h-3 rounded ${cat.color}`}></span> Reserved
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 bg-slate-100 border border-slate-200 rounded relative overflow-hidden">
@@ -597,10 +591,6 @@ export default function RollingTimelineBooking() {
                         cellStyle = `${cat.colorSelected} text-white font-semibold cursor-pointer`
                       }
 
-                      const patternStyle = isReserved
-                        ? { backgroundImage: cat.pattern, backgroundSize: "6px 6px" }
-                        : undefined
-
                       return (
                         <td
                           key={hourIdx}
@@ -611,15 +601,9 @@ export default function RollingTimelineBooking() {
                           onMouseUp={endDrag}
                           onTouchStart={(e) => { e.preventDefault(); startDrag(day.dbKey, hourIdx, day.rawDate) }}
                           className={`border-r border-slate-200 p-1 text-center select-none align-middle transition-all text-[11px] truncate max-w-[90px] ${cellStyle}`}
-                          style={patternStyle}
                           title={isReserved ? `${booking.user_name} — click to manage cancel option` : isSelected ? "Click/drag to deselect" : ""}
                         >
-                          {isReserved ? (
-                            <span className="flex items-center justify-center gap-1">
-                              <span className="text-[10px] leading-none">{cat.icon}</span>
-                              <span className="truncate">{booking.user_name}</span>
-                            </span>
-                          ) : isSelected ? "✓" : ""}
+                          {isReserved ? booking.user_name : isSelected ? "✓" : ""}
                         </td>
                       )
                     })}
