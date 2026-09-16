@@ -41,7 +41,7 @@ const CATEGORIES = [
     textColor: "text-amber-700",
     borderColor: "border-amber-300",
     bgLight: "bg-amber-50",
-    icon: "☀",
+    icon: "●",
     pattern:
       "repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 2px, transparent 2px, transparent 6px)",
   },
@@ -56,7 +56,7 @@ const CATEGORIES = [
     textColor: "text-orange-700",
     borderColor: "border-orange-300",
     bgLight: "bg-orange-50",
-    icon: "✺",
+    icon: "◉",
     pattern:
       "repeating-linear-gradient(-45deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 2px, transparent 2px, transparent 6px)",
   },
@@ -72,7 +72,7 @@ const CATEGORIES = [
     textColor: "text-slate-700",
     borderColor: "border-slate-300",
     bgLight: "bg-slate-50",
-    icon: "▦",
+    icon: "▣",
     pattern:
       "radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px)",
   },
@@ -88,7 +88,7 @@ const CATEGORIES = [
     textColor: "text-blue-700",
     borderColor: "border-blue-300",
     bgLight: "bg-blue-50",
-    icon: "◆",
+    icon: "✪",
     pattern:
       "repeating-linear-gradient(90deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 2px, transparent 2px, transparent 6px)",
   },
@@ -104,7 +104,7 @@ const CATEGORIES = [
     textColor: "text-indigo-700",
     borderColor: "border-indigo-300",
     bgLight: "bg-indigo-50",
-    icon: "◈",
+    icon: "★",
     pattern:
       "repeating-linear-gradient(0deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 2px, transparent 2px, transparent 6px)",
   },
