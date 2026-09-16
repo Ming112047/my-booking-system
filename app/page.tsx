@@ -161,6 +161,9 @@ export default function RollingTimelineBooking() {
   // Multiple cancellations tracking state
   const [slotsToCancel, setSlotsToCancel] = useState<Reservation[]>([])
 
+  // Sidebar (YouTube-style icon rail) open/collapsed state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
   // Drag-to-select state
   const [isDragging, setIsDragging] = useState(false)
   const [dragMode, setDragMode] = useState<"select" | "deselect">("select")
@@ -465,7 +468,74 @@ export default function RollingTimelineBooking() {
   const rangeDisplay = `${firstDay.dateLabel} – ${lastDay.dateLabel}`
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 p-4 text-slate-800 font-sans text-xs">
+    <div className="w-full min-h-screen bg-slate-50 text-slate-800 font-sans text-xs flex">
+
+      {/* ── Sidebar: YouTube-style icon rail, expands to show labels ── */}
+      <div
+        className={`fixed left-0 top-0 h-full bg-white border-r border-slate-200 shadow-sm z-40 flex flex-col items-center py-3 gap-1 transition-all duration-200 ${
+          isSidebarOpen ? "w-44 items-stretch px-2" : "w-14"
+        }`}
+      >
+        {/* Hamburger toggle */}
+        <button
+          onClick={() => setIsSidebarOpen((prev) => !prev)}
+          className={`flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100 text-slate-600 mb-2 ${
+            isSidebarOpen ? "self-start ml-1" : ""
+          }`}
+          title={isSidebarOpen ? "Collapse menu" : "Expand menu"}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
+        {CATEGORIES.map((c) => {
+          const isActive = activeCategory === c.id
+          return (
+            <button
+              key={c.id}
+              onClick={() => { setActiveCategory(c.id); setSelectedSlots([]) }}
+              title={c.label}
+              className={`flex items-center rounded-lg transition-all ${
+                isSidebarOpen
+                  ? "gap-3 px-2 py-2 w-full"
+                  : "flex-col justify-center w-11 h-11 mx-auto gap-0.5"
+              } ${
+                isActive
+                  ? `${c.color} text-white shadow-sm`
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <span
+                className={`flex items-center justify-center rounded-full text-[11px] leading-none flex-shrink-0 ${
+                  isSidebarOpen ? "w-6 h-6" : "w-7 h-7"
+                } ${isActive ? "bg-white/25 text-white" : `${c.dotColor} text-white`}`}
+              >
+                {c.icon}
+              </span>
+              {isSidebarOpen ? (
+                <span className="text-left leading-tight">
+                  <div className="text-[11px] font-semibold truncate">{c.label}</div>
+                  {"sublabel" in c && (
+                    <div className={`text-[9px] font-normal truncate ${isActive ? "text-white/70" : "text-slate-400"}`}>
+                      {c.sublabel}
+                    </div>
+                  )}
+                </span>
+              ) : (
+                <span className={`text-[8px] font-medium leading-none truncate max-w-[44px] ${isActive ? "text-white" : "text-slate-500"}`}>
+                  {c.label.split(" ")[0]}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Main content, offset to the right of the sidebar ── */}
+      <div className={`flex-1 p-4 transition-all duration-200 ${isSidebarOpen ? "ml-44" : "ml-14"}`}>
       <div className="max-w-[1600px] mx-auto bg-white rounded-lg shadow-sm border border-slate-200 p-4">
 
         {/* Header */}
@@ -474,31 +544,6 @@ export default function RollingTimelineBooking() {
             SAA Lab Scheduler
           </h1>
           <p className="text-[10px] text-slate-400 mt-0.5">Book instruments & reactors · syncs live for all users</p>
-        </div>
-
-        {/* Category tabs */}
-        <div className="flex flex-wrap gap-2 justify-center mb-5">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => { setActiveCategory(c.id); setSelectedSlots([]) }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold transition-all shadow-sm ${
-                activeCategory === c.id
-                  ? `${c.color} text-white border-transparent shadow-md scale-105`
-                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-            >
-              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[10px] leading-none ${activeCategory === c.id ? "bg-white/25" : `${c.dotColor} text-white`}`}>
-                {c.icon}
-              </span>
-              <span>{c.label}</span>
-              {"sublabel" in c && (
-                <span className={`text-[9px] font-normal ${activeCategory === c.id ? "text-white/70" : "text-slate-400"}`}>
-                  ({c.sublabel})
-                </span>
-              )}
-            </button>
-          ))}
         </div>
 
         {/* Week nav */}
@@ -613,6 +658,7 @@ export default function RollingTimelineBooking() {
             </table>
           </div>
         )}
+      </div>
       </div>
 
       {/* Floating action bar */}
