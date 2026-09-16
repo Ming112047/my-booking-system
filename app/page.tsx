@@ -255,36 +255,6 @@ export default function RollingTimelineBooking() {
     return () => window.removeEventListener("mouseup", handleGlobalMouseUp)
   }, [])
 
-  // ── Touch support: translate finger position into the cell under it ──
-  useEffect(() => {
-    if (!isDragging) return
-
-    const handleTouchMove = (e: TouchEvent) => {
-      const touch = e.touches[0]
-      if (!touch) return
-      const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null
-      const cell = el?.closest("[data-date-key][data-hour-idx]") as HTMLElement | null
-      if (!cell) return
-      const dateKey = cell.getAttribute("data-date-key")
-      const hourIdxAttr = cell.getAttribute("data-hour-idx")
-      if (!dateKey || hourIdxAttr === null) return
-      e.preventDefault() // stop page scroll while actively dragging over a cell
-      dragOverSlot(dateKey, Number(hourIdxAttr))
-    }
-
-    const handleTouchEnd = () => setIsDragging(false)
-
-    // passive:false so we can prevent the page from scrolling while dragging
-    window.addEventListener("touchmove", handleTouchMove, { passive: false })
-    window.addEventListener("touchend", handleTouchEnd)
-    window.addEventListener("touchcancel", handleTouchEnd)
-    return () => {
-      window.removeEventListener("touchmove", handleTouchMove)
-      window.removeEventListener("touchend", handleTouchEnd)
-      window.removeEventListener("touchcancel", handleTouchEnd)
-    }
-  }, [isDragging, dragOverSlot])
-
   // ── Helpers ──
   const handleNextPeriod = () => setDayOffset((prev) => prev + 7)
   const handlePrevPeriod = () => setDayOffset((prev) => prev - 7)
@@ -351,6 +321,36 @@ export default function RollingTimelineBooking() {
   }
 
   const endDrag = () => setIsDragging(false)
+
+  // ── Touch support: translate finger position into the cell under it ──
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0]
+      if (!touch) return
+      const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null
+      const cell = el?.closest("[data-date-key][data-hour-idx]") as HTMLElement | null
+      if (!cell) return
+      const dateKey = cell.getAttribute("data-date-key")
+      const hourIdxAttr = cell.getAttribute("data-hour-idx")
+      if (!dateKey || hourIdxAttr === null) return
+      e.preventDefault() // stop page scroll while actively dragging over a cell
+      dragOverSlot(dateKey, Number(hourIdxAttr))
+    }
+
+    const handleTouchEnd = () => setIsDragging(false)
+
+    // passive:false so we can prevent the page from scrolling while dragging
+    window.addEventListener("touchmove", handleTouchMove, { passive: false })
+    window.addEventListener("touchend", handleTouchEnd)
+    window.addEventListener("touchcancel", handleTouchEnd)
+    return () => {
+      window.removeEventListener("touchmove", handleTouchMove)
+      window.removeEventListener("touchend", handleTouchEnd)
+      window.removeEventListener("touchcancel", handleTouchEnd)
+    }
+  }, [isDragging, dragOverSlot])
 
   const handleOpenBookingModal = () => {
     if (selectedSlots.length === 0) return
