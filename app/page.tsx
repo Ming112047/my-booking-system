@@ -29,6 +29,7 @@ const CATEGORIES = [
   {
     id: "solar_100w",
     label: "100W Solar",
+    sublabel: "GC Connected",
     color: "bg-amber-500",
     colorReserved: "bg-amber-500 hover:bg-amber-600",
     colorSelected: "bg-amber-300 ring-2 ring-amber-400 ring-inset",
