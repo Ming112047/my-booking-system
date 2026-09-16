@@ -25,6 +25,9 @@ const HOURS = Array.from({ length: 24 }, (_, i) => {
   return `${hour}:00 ${ampm}`
 })
 
+// Colorblind-friendly per-category markers: a distinct icon glyph plus a
+// distinct CSS background pattern, so categories are distinguishable even
+// without relying on hue.
 const CATEGORIES = [
   {
     id: "solar_100w",
@@ -38,6 +41,9 @@ const CATEGORIES = [
     textColor: "text-amber-700",
     borderColor: "border-amber-300",
     bgLight: "bg-amber-50",
+    icon: "☀",
+    pattern:
+      "repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 2px, transparent 2px, transparent 6px)",
   },
   {
     id: "solar_300w",
@@ -50,6 +56,9 @@ const CATEGORIES = [
     textColor: "text-orange-700",
     borderColor: "border-orange-300",
     bgLight: "bg-orange-50",
+    icon: "✺",
+    pattern:
+      "repeating-linear-gradient(-45deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 2px, transparent 2px, transparent 6px)",
   },
   {
     id: "grey_reactor",
@@ -63,6 +72,9 @@ const CATEGORIES = [
     textColor: "text-slate-700",
     borderColor: "border-slate-300",
     bgLight: "bg-slate-50",
+    icon: "▦",
+    pattern:
+      "radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px)",
   },
   {
     id: "blue_reactor",
@@ -76,6 +88,9 @@ const CATEGORIES = [
     textColor: "text-blue-700",
     borderColor: "border-blue-300",
     bgLight: "bg-blue-50",
+    icon: "◆",
+    pattern:
+      "repeating-linear-gradient(90deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 2px, transparent 2px, transparent 6px)",
   },
   {
     id: "blue_reactor_2",
@@ -89,6 +104,9 @@ const CATEGORIES = [
     textColor: "text-indigo-700",
     borderColor: "border-indigo-300",
     bgLight: "bg-indigo-50",
+    icon: "◈",
+    pattern:
+      "repeating-linear-gradient(0deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 2px, transparent 2px, transparent 6px)",
   },
 ] as const
 
@@ -237,6 +255,36 @@ export default function RollingTimelineBooking() {
     return () => window.removeEventListener("mouseup", handleGlobalMouseUp)
   }, [])
 
+  // ── Touch support: translate finger position into the cell under it ──
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0]
+      if (!touch) return
+      const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null
+      const cell = el?.closest("[data-date-key][data-hour-idx]") as HTMLElement | null
+      if (!cell) return
+      const dateKey = cell.getAttribute("data-date-key")
+      const hourIdxAttr = cell.getAttribute("data-hour-idx")
+      if (!dateKey || hourIdxAttr === null) return
+      e.preventDefault() // stop page scroll while actively dragging over a cell
+      dragOverSlot(dateKey, Number(hourIdxAttr))
+    }
+
+    const handleTouchEnd = () => setIsDragging(false)
+
+    // passive:false so we can prevent the page from scrolling while dragging
+    window.addEventListener("touchmove", handleTouchMove, { passive: false })
+    window.addEventListener("touchend", handleTouchEnd)
+    window.addEventListener("touchcancel", handleTouchEnd)
+    return () => {
+      window.removeEventListener("touchmove", handleTouchMove)
+      window.removeEventListener("touchend", handleTouchEnd)
+      window.removeEventListener("touchcancel", handleTouchEnd)
+    }
+  }, [isDragging, dragOverSlot])
+
   // ── Helpers ──
   const handleNextPeriod = () => setDayOffset((prev) => prev + 7)
   const handlePrevPeriod = () => setDayOffset((prev) => prev - 7)
@@ -285,8 +333,10 @@ export default function RollingTimelineBooking() {
     }
   }
 
-  const dragOverSlot = (dateKey: string, hourIdx: number, dayDate: Date) => {
+  const dragOverSlot = (dateKey: string, hourIdx: number, dayDateOverride?: Date) => {
     if (!isDragging) return
+    const dayDate = dayDateOverride ?? daysOfWeek.find((d) => d.dbKey === dateKey)?.rawDate
+    if (!dayDate) return
     if (isSlotPast(dayDate, hourIdx)) return
     const booking = schedule[activeCategory]?.[dateKey]?.[hourIdx]
     if (booking) return // never drag over reserved cells
@@ -342,7 +392,19 @@ export default function RollingTimelineBooking() {
     if (error) {
       console.error("❌ SUPABASE TRANSACTION FAILED", error)
       temporaryRows.forEach((row) => removeRow(row))
-      alert(`Reservation Failed: ${error.message}`)
+
+      // 23505 = unique_violation — someone else grabbed one of these slots first.
+      if (error.code === "23505") {
+        alert(
+          "One or more of those slots was just booked by someone else. " +
+          "The schedule has been refreshed — please pick again."
+        )
+        // Resync with the server so the now-taken slot shows correctly.
+        const { data: freshData } = await supabase.from("reservations").select("*")
+        if (freshData) applyRows(freshData as Reservation[])
+      } else {
+        alert(`Reservation Failed: ${error.message}`)
+      }
     } else if (data) {
       applyRows(data as Reservation[])
     }
@@ -426,7 +488,9 @@ export default function RollingTimelineBooking() {
                   : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${activeCategory === c.id ? "bg-white/70" : c.dotColor}`}></span>
+              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[10px] leading-none ${activeCategory === c.id ? "bg-white/25" : `${c.dotColor} text-white`}`}>
+                {c.icon}
+              </span>
               <span>{c.label}</span>
               {"sublabel" in c && (
                 <span className={`text-[9px] font-normal ${activeCategory === c.id ? "text-white/70" : "text-slate-400"}`}>
@@ -465,7 +529,13 @@ export default function RollingTimelineBooking() {
             <span className={`w-3 h-3 rounded opacity-60 ${cat.color}`}></span> Selected
           </div>
           <div className="flex items-center gap-1.5">
-            <span className={`w-3 h-3 rounded ${cat.color}`}></span> Reserved
+            <span
+              className={`w-3 h-3 rounded ${cat.color} flex items-center justify-center text-white text-[7px] leading-none`}
+              style={{ backgroundImage: cat.pattern, backgroundSize: "6px 6px" }}
+            >
+              {cat.icon}
+            </span>
+            Reserved <span className="text-slate-400">(icon + pattern shows the instrument)</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 bg-slate-100 border border-slate-200 rounded relative overflow-hidden">
@@ -527,16 +597,29 @@ export default function RollingTimelineBooking() {
                         cellStyle = `${cat.colorSelected} text-white font-semibold cursor-pointer`
                       }
 
+                      const patternStyle = isReserved
+                        ? { backgroundImage: cat.pattern, backgroundSize: "6px 6px" }
+                        : undefined
+
                       return (
                         <td
                           key={hourIdx}
+                          data-date-key={day.dbKey}
+                          data-hour-idx={hourIdx}
                           onMouseDown={(e) => { e.preventDefault(); startDrag(day.dbKey, hourIdx, day.rawDate) }}
                           onMouseEnter={() => dragOverSlot(day.dbKey, hourIdx, day.rawDate)}
                           onMouseUp={endDrag}
+                          onTouchStart={(e) => { e.preventDefault(); startDrag(day.dbKey, hourIdx, day.rawDate) }}
                           className={`border-r border-slate-200 p-1 text-center select-none align-middle transition-all text-[11px] truncate max-w-[90px] ${cellStyle}`}
+                          style={patternStyle}
                           title={isReserved ? `${booking.user_name} — click to manage cancel option` : isSelected ? "Click/drag to deselect" : ""}
                         >
-                          {isReserved ? booking.user_name : isSelected ? "✓" : ""}
+                          {isReserved ? (
+                            <span className="flex items-center justify-center gap-1">
+                              <span className="text-[10px] leading-none">{cat.icon}</span>
+                              <span className="truncate">{booking.user_name}</span>
+                            </span>
+                          ) : isSelected ? "✓" : ""}
                         </td>
                       )
                     })}
